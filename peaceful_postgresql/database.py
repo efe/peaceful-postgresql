@@ -1,6 +1,5 @@
-# database.py
-from settings import DATABASE_CONFIG
 import psycopg2
+from peaceful_postgresql.settings import DATABASE_CONFIG, TABLE_SIZE_THRESHOLD
 
 
 def get_connection():
@@ -28,9 +27,9 @@ def get_table_sizes(table_names):
     return sizes
 
 
-def is_downtime_happen(table_names):
+def is_downtime_going_to_happen(table_names):
     sizes = get_table_sizes(table_names)
     for table, size in sizes.items():
-        if size > 1 * 1024 * 1024 * 1024:  # 1GB
+        if size > TABLE_SIZE_THRESHOLD:
             return True
     return False
