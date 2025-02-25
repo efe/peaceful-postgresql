@@ -4,7 +4,7 @@ A tool that detects -possible- downtime during PostgreSQL schema modifications.
 
 ## How does it work?
 
-1) Parses an SQL query and guesses `AccessExclusiveLock` and `ShareLock` locks. Then, returns the table names.
+1) Parses an SQL query and guesses `AccessExclusiveLock` and `ShareLock` locks which blocks concurrent queries to the table. Then, returns the table names.
 
 2) Then, checks the table size of these tables.
 
