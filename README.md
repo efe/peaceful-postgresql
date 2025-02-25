@@ -1,11 +1,16 @@
 # peaceful-postgresql
+A tool for detecting potential downtime during PostgreSQL schema modifications.
 
-A tool that detects -possible- downtime during PostgreSQL schema modifications.
+## How It Works
 
-## How does it work?
+1)Parses an SQL query to identify `AccessExclusiveLock` and `ShareLock` locks, which block concurrent queries on the affected table.
 
-1) Parses an SQL query and guesses `AccessExclusiveLock` and `ShareLock` locks which blocks concurrent queries to the table. Then, returns the table names.
+2) Retrieves the size of the locked tables.
 
-2) Then, checks the table size of these tables.
+3) If a table exceeds a certain size threshold, downtime is likely.
 
-3) If the size of table above certain limit, it means that we'll have a downtime.
+## Roadmap
+
+- Add native support for Django and Alembic.
+- Enhance the query parser with improved accuracy and comprehensive test coverage.
+- Expand downtime estimation by considering cache, dead tuples, and other factors beyond table size.
