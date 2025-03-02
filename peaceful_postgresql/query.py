@@ -8,6 +8,7 @@ from peaceful_postgresql.constants import StatementType, LockType, LockModeKeywo
 def detect_locks(sql_query: str) -> Dict[str, str]:
     """
     Analyze SQL queries to detect PostgreSQL locks that would be acquired.
+    Only detects ACCESS EXCLUSIVE and SHARE locks.
 
     Args:
         sql_query: String containing one or more SQL statements
@@ -37,18 +38,25 @@ def detect_locks(sql_query: str) -> Dict[str, str]:
                 break
 
         if not statement_type:
+            # Check for additional statement types that acquire ACCESS EXCLUSIVE locks
+            for exclusive_stmt in ['VACUUM FULL', 'CLUSTER', 'REINDEX']:
+                if stmt.strip().upper().startswith(exclusive_stmt):
+                    table_match = re.search(
+                        r'(?i)' + exclusive_stmt + r'\s+("?[a-zA-Z_0-9]+"?)',
+                        stmt
+                    )
+                    if table_match:
+                        table_name = table_match.group(1).strip('"')
+                        locks[table_name] = LockType.ACCESS_EXCLUSIVE.value
+                    break
             continue
 
         # Handle different statement types
         if statement_type == StatementType.SELECT:
-            # SELECT generally acquires RowShareLock (unless FOR UPDATE/SHARE is specified)
+            # Only track SHARE locks for SELECT
             table_names = extract_table_names(parsed)
             for table in table_names:
-                # Check for FOR UPDATE/SHARE clause
-                if re.search(r'(?i)FOR\s+(UPDATE|SHARE)', stmt):
-                    locks[table] = LockType.ROW_EXCLUSIVE.value
-                else:
-                    locks[table] = LockType.ROW_SHARE.value
+                locks[table] = LockType.SHARE.value
 
         elif statement_type in {StatementType.INSERT, StatementType.UPDATE, StatementType.DELETE}:
             # These statements typically acquire RowExclusiveLock
@@ -58,17 +66,32 @@ def detect_locks(sql_query: str) -> Dict[str, str]:
 
         elif statement_type in {StatementType.CREATE, StatementType.ALTER,
                                 StatementType.DROP, StatementType.TRUNCATE}:
-            # These statements typically acquire AccessExclusiveLock
+            # These statements acquire AccessExclusiveLock
+            # Enhanced regex to catch more object types and their names
             table_match = re.search(
-                r'(?i)(TABLE|INDEX|SEQUENCE|VIEW)\s+(IF EXISTS\s+)?("?[a-zA-Z_0-9]+"?)',
+                r'(?i)(TABLE|INDEX|SEQUENCE|VIEW|MATERIALIZED\s+VIEW)\s+'
+                r'(IF EXISTS\s+)?(["\w\s.]+?)(?:\s|$)',
                 stmt
             )
-            if table_match:
+            
+            # Special handling for ALTER statements
+            if statement_type == StatementType.ALTER:
+                # Handle all ALTER TABLE/INDEX operations that require ACCESS EXCLUSIVE lock
+                alter_match = re.search(
+                    r'(?i)ALTER\s+(TABLE|INDEX)\s+(["\w\s.]+?)\s+'
+                    r'(SET|DROP|RENAME|ADD|ALTER|ATTACH|DETACH|INHERIT|ENABLE|DISABLE)',
+                    stmt
+                )
+                if alter_match:
+                    table_name = alter_match.group(2).strip('"')
+                    locks[table_name] = LockType.ACCESS_EXCLUSIVE.value
+            
+            elif table_match:
                 table_name = table_match.group(3).strip('"')
                 locks[table_name] = LockType.ACCESS_EXCLUSIVE.value
 
         elif statement_type == StatementType.LOCK:
-            # Explicit LOCK statement
+            # Only handle explicit SHARE or ACCESS EXCLUSIVE locks
             table_match = re.search(
                 r'(?i)LOCK\s+TABLE\s+("?[a-zA-Z_0-9]+"?)(?:\s+IN\s+(.+)\s+MODE)?',
                 stmt
@@ -77,15 +100,8 @@ def detect_locks(sql_query: str) -> Dict[str, str]:
                 table_name = table_match.group(1).strip('"')
                 lock_mode = table_match.group(2).upper() if table_match.group(2) else "ACCESS EXCLUSIVE"
 
-                # Map lock mode to PostgreSQL lock type
-                if LockModeKeyword.SHARE.value in lock_mode and LockModeKeyword.UPDATE.value in lock_mode:
-                    locks[table_name] = LockType.SHARE_UPDATE_EXCLUSIVE.value
-                elif LockModeKeyword.SHARE.value in lock_mode and LockModeKeyword.ROW.value in lock_mode:
-                    locks[table_name] = LockType.ROW_SHARE.value
-                elif LockModeKeyword.SHARE.value in lock_mode:
+                if LockModeKeyword.SHARE.value in lock_mode and LockModeKeyword.UPDATE.value not in lock_mode:
                     locks[table_name] = LockType.SHARE.value
-                elif f"{LockModeKeyword.ROW.value} {LockModeKeyword.EXCLUSIVE.value}" in lock_mode:
-                    locks[table_name] = LockType.ROW_EXCLUSIVE.value
                 elif LockModeKeyword.EXCLUSIVE.value in lock_mode:
                     locks[table_name] = LockType.ACCESS_EXCLUSIVE.value
 

@@ -4,10 +4,7 @@ from enum import Enum
 class LockType(Enum):
     """PostgreSQL lock types."""
     ACCESS_EXCLUSIVE = "AccessExclusiveLock"
-    ROW_EXCLUSIVE = "RowExclusiveLock"
-    ROW_SHARE = "RowShareLock"
     SHARE = "ShareLock"
-    SHARE_UPDATE_EXCLUSIVE = "ShareUpdateExclusiveLock"
 
 
 class StatementType(Enum):
@@ -21,6 +18,9 @@ class StatementType(Enum):
     DROP = "DROP"
     TRUNCATE = "TRUNCATE"
     LOCK = "LOCK"
+    VACUUM = "VACUUM"
+    CLUSTER = "CLUSTER"
+    REINDEX = "REINDEX"
 
 
 class ObjectType(Enum):
