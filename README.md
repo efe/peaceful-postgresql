@@ -14,3 +14,11 @@ A tool for detecting potential downtime during PostgreSQL schema modifications.
 - Add native support for Django and Alembic.
 - Enhance the query parser with improved accuracy and comprehensive test coverage.
 - Expand downtime estimation by considering cache, dead tuples, and other factors beyond table size.
+
+## Development
+
+### Running tests
+
+```
+./tools/run_tests.sh
+```
