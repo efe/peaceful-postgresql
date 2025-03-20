@@ -42,5 +42,3 @@ class Command(BaseCommand):
                         self.stdout.write(f"- {lock}")
                 else:
                     self.stdout.write(self.style.SUCCESS(f"No locks detected for: {sql}"))
-
-    

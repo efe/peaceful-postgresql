@@ -1,4 +1,4 @@
-# peaceful-postgresql
+# peaceful-postgresql (work in progress)
 A tool for detecting potential downtime during PostgreSQL schema modifications.
 
 ## How It Works
