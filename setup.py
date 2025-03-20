@@ -29,6 +29,5 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "sqlparse>=0.4.0",
-        "psycopg2>=2.9.0",
     ],
 ) 
